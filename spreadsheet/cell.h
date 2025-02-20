@@ -50,7 +50,6 @@ private:
         explicit FormulaImpl(std::string text, Cell* self)
             : formula_(ParseFormula(text.substr(1))), self_(self) {
             UpdateDependencies();
-            CheckCircularDependency(self);
             InvalidateCache();
         }
 
@@ -59,11 +58,11 @@ private:
         std::vector<Cell*> GetDependencies() const;
         std::vector<Position> GetReferencedCells() const override;
 
-    private:
         void UpdateDependencies();
         void CheckCircularDependency(Cell* self);
         void InvalidateCache();
 
+    private:
         std::unique_ptr<FormulaInterface> formula_;
         std::vector<Cell*> dependencies_;
         mutable std::optional<Value> cache_;

@@ -15,14 +15,19 @@ void Cell::Set(std::string text) {
     if (text.empty()) {
         impl_ = std::make_unique<EmptyImpl>();
     } else if (text[0] == '=' && text.size() > 1) {
-        impl_ = std::make_unique<FormulaImpl>(text, this);
+        auto temp_formula = std::make_unique<FormulaImpl>(text, this);
+
+        temp_formula->UpdateDependencies();
+        temp_formula->CheckCircularDependency(this);
+
+        impl_ = std::move(temp_formula);
     } else {
         impl_ = std::make_unique<TextImpl>(text);
     }
 }
 
 void Cell::Clear() {
-    impl_ = std::make_unique<EmptyImpl>();
+    Set("");
 }
 
 Cell::Value Cell::GetValue() const {
@@ -90,14 +95,13 @@ void Cell::FormulaImpl::UpdateDependencies() {
         }
     }
 }
-
 void Cell::FormulaImpl::CheckCircularDependency(Cell* self) {
-    std::unordered_set<Cell*> visited;  
-    std::unordered_set<Cell*> in_stack;  
+    std::unordered_set<Cell*> visited;
+    std::unordered_set<Cell*> in_stack;
     std::stack<std::pair<Cell*, std::vector<Cell*>::iterator>> stack;
 
     for (Cell* dep : dependencies_) {
-        if (!dep || !dep->impl_) continue; 
+        if (!dep || !dep->impl_) continue;
         auto* dep_impl = dynamic_cast<FormulaImpl*>(dep->impl_.get());
 
         if (dep == self) {
@@ -125,7 +129,7 @@ void Cell::FormulaImpl::CheckCircularDependency(Cell* self) {
 
             if (visited.insert(next).second) {
                 auto* next_impl = dynamic_cast<FormulaImpl*>(next->impl_.get());
-                if (next_impl) { 
+                if (next_impl) {
                     stack.push({next, next_impl->GetDependencies().begin()});
                     in_stack.insert(next);
                 }
@@ -135,12 +139,14 @@ void Cell::FormulaImpl::CheckCircularDependency(Cell* self) {
 }
 
 void Cell::FormulaImpl::InvalidateCache() {
-    if (cache_) {
-        cache_.reset();
-        for (Cell* dep : dependencies_) {
-            if (dep) {
-                dynamic_cast<FormulaImpl*>(dep->impl_.get())->InvalidateCache();
-            }
+    if (!cache_) {
+        return;
+    }
+
+    cache_.reset();
+    for (Cell* dep : dependencies_) {
+        if (dep) {
+            dynamic_cast<FormulaImpl*>(dep->impl_.get())->InvalidateCache();
         }
     }
 }

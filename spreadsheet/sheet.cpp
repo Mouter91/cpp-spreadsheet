@@ -30,6 +30,7 @@ const CellInterface* Sheet::GetCell(Position pos) const {
     auto it = table_.find(pos);
     return (it != table_.end()) ? it->second.get() : nullptr;
 }
+
 CellInterface* Sheet::GetCell(Position pos) {
     PosValid(pos);
     auto it = table_.find(pos);
@@ -47,13 +48,13 @@ Size Sheet::GetPrintableSize() const {
 }
 
 void Sheet::PrintValues(std::ostream& output) const {
-    for (int i = 0; i < size_table_.rows; ++i) {
-        for (int j = 0; j < size_table_.cols; ++j) {
-            auto cell = GetCell({i, j});
+    for (int row = 0; row < size_table_.rows; ++row) {
+        for (int col = 0; col < size_table_.cols; ++col) {
+            auto cell = GetCell({row, col});
             Cell::Value val = cell ? cell->GetValue() : Cell::Value{};
 
-            std::visit([&output, j, cols = size_table_.cols](const auto& value) {  
-                output << value << (j + 1 == cols ? "" : "\t");
+            std::visit([&output, col, cols = size_table_.cols](const auto& value) {
+                output << value << (col + 1 == cols ? "" : "\t");
             }, val);
         }
         output << '\n';

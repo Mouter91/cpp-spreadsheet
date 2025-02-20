@@ -151,13 +151,15 @@ public:
         case Multiply:
             return lhs_->Evaluate(sheet) * rhs_->Evaluate(sheet);
         case Divide:
-            if (!std::isfinite(lhs_->Evaluate(sheet) / rhs_->Evaluate(sheet))) {
+            double left = lhs_->Evaluate(sheet);
+            double right = rhs_->Evaluate(sheet);
+
+            if (!std::isfinite(left / right)) {
                 throw FormulaError(FormulaError::Category::Arithmetic);
             }
-            return lhs_->Evaluate(sheet) / rhs_->Evaluate(sheet);
-        default:
-            assert(false);
-            return 0;
+
+            double result = left / right;
+            return result;
         }
     }
 
