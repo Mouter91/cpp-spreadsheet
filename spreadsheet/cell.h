@@ -3,14 +3,11 @@
 #include "common.h"
 #include "formula.h"
 
-#include <functional>
-#include <unordered_set>
-
-class Sheet;
+#include <optional>
 
 class Cell : public CellInterface {
 public:
-    Cell(Sheet& sheet);
+    Cell(SheetInterface &sheet);
     ~Cell();
 
     void Set(std::string text);
@@ -20,17 +17,59 @@ public:
     std::string GetText() const override;
     std::vector<Position> GetReferencedCells() const override;
 
-    bool IsReferenced() const;
-
 private:
-    class Impl;
-    class EmptyImpl;
-    class TextImpl;
-    class FormulaImpl;
+    class Impl {
+    public:
+        virtual ~Impl() = default;
+        virtual std::string GetText() const = 0;
+        virtual Value GetValue() const = 0;
+        virtual std::vector<Position> GetReferencedCells() const = 0;
+    };
+
+    class EmptyImpl : public Impl {
+    public:
+        std::string GetText() const override;
+        Value GetValue() const override;
+        std::vector<Position> GetReferencedCells() const override;
+    };
+
+    class TextImpl : public Impl {
+    public:
+        explicit TextImpl(std::string text) : text_(std::move(text)) {}
+
+        std::string GetText() const override;
+        Value GetValue() const override;
+        std::vector<Position> GetReferencedCells() const override;
+
+    private:
+        std::string text_;
+    };
+
+    class FormulaImpl : public Impl {
+    public:
+        explicit FormulaImpl(std::string text, Cell* self)
+            : formula_(ParseFormula(text.substr(1))), self_(self) {
+            UpdateDependencies();
+            CheckCircularDependency(self);
+            InvalidateCache();
+        }
+
+        std::string GetText() const override;
+        Value GetValue() const override;
+        std::vector<Cell*> GetDependencies() const;
+        std::vector<Position> GetReferencedCells() const override;
+
+    private:
+        void UpdateDependencies();
+        void CheckCircularDependency(Cell* self);
+        void InvalidateCache();
+
+        std::unique_ptr<FormulaInterface> formula_;
+        std::vector<Cell*> dependencies_;
+        mutable std::optional<Value> cache_;
+        Cell* self_;
+    };
 
     std::unique_ptr<Impl> impl_;
-
-    // Добавьте поля и методы для связи с таблицей, проверки циклических 
-    // зависимостей, графа зависимостей и т. д.
-
+    const SheetInterface& sheet_;
 };
